@@ -1,47 +1,40 @@
-import client.StellarBurgersApi;
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
 import io.restassured.response.Response;
 import model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.UUID;
+import steps.UserSteps;
+import utils.UserGenerator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CreateUserTest {
 
+    private final UserSteps userSteps = new UserSteps();
     private String accessToken;
 
     @AfterEach
-    @Step("Удалить тестового пользователя")
     public void tearDown() {
-        if (accessToken != null) {
-            StellarBurgersApi.deleteUser(accessToken);
-        }
+        userSteps.deleteUser(accessToken);
     }
 
     @Test
-    @Step("Создать уникального пользователя")
+    @Description("Проверка успешного создания уникального пользователя")
     public void createUniqueUserTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = getUniqueUser();
-
-        Response response = StellarBurgersApi.createUser(user);
+        Response response = userSteps.createUser(user);
 
         assertEquals(200, response.statusCode());
         assertTrue(response.jsonPath().getBoolean("success"));
-
         assertEquals(
                 user.getEmail(),
                 response.jsonPath().getString("user.email")
         );
-
         assertEquals(
                 user.getName(),
                 response.jsonPath().getString("user.name")
         );
-
         assertNotNull(response.jsonPath().getString("accessToken"));
         assertNotNull(response.jsonPath().getString("refreshToken"));
 
@@ -49,23 +42,22 @@ public class CreateUserTest {
     }
 
     @Test
-    @Step("Создать уже зарегистрированного пользователя")
+    @Description("Проверка ошибки при создании уже зарегистрированного пользователя")
     public void createExistingUserTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = getUniqueUser();
-
-        Response firstResponse = StellarBurgersApi.createUser(user);
+        Response firstResponse = userSteps.createUser(user);
 
         assertEquals(200, firstResponse.statusCode());
-        assertTrue(firstResponse.jsonPath().getBoolean("success"));
 
-        accessToken = firstResponse.jsonPath().getString("accessToken");
+        accessToken =
+                firstResponse.jsonPath().getString("accessToken");
 
-        Response secondResponse = StellarBurgersApi.createUser(user);
+        Response secondResponse =
+                userSteps.createUser(user);
 
         assertEquals(403, secondResponse.statusCode());
         assertFalse(secondResponse.jsonPath().getBoolean("success"));
-
         assertEquals(
                 "User already exists",
                 secondResponse.jsonPath().getString("message")
@@ -73,31 +65,24 @@ public class CreateUserTest {
     }
 
     @Test
-    @Step("Создать пользователя без обязательного поля")
+    @Description("Проверка ошибки при создании пользователя без обязательного поля")
     public void createUserWithoutRequiredFieldTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = getUniqueUser();
+        User userWithoutName = new User(
+                user.getEmail(),
+                user.getPassword(),
+                null
+        );
 
-        Response response = StellarBurgersApi.createUserWithoutName(user);
+        Response response =
+                userSteps.createUser(userWithoutName);
 
         assertEquals(403, response.statusCode());
         assertFalse(response.jsonPath().getBoolean("success"));
-
         assertEquals(
                 "Email, password and name are required fields",
                 response.jsonPath().getString("message")
-        );
-    }
-
-    @Step("Сгенерировать уникального пользователя")
-    private User getUniqueUser() {
-
-        String uniqueId = UUID.randomUUID().toString();
-
-        return new User(
-                "test_" + uniqueId + "@mail.ru",
-                "Password123",
-                "TestUser"
         );
     }
 }

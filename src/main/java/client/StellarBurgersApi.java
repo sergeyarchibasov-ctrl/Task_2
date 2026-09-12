@@ -1,7 +1,9 @@
 package client;
 
-import io.qameta.allure.Step;
+import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import model.LoginRequest;
+import model.OrderRequest;
 import model.User;
 
 import static io.restassured.RestAssured.given;
@@ -11,182 +13,78 @@ public class StellarBurgersApi {
     private static final String BASE_URL =
             "https://qa-stellarburgers.education-services.ru";
 
-    @Step("Создать пользователя")
-    public static Response createUser(User user) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"password\":\"%s\",\"name\":\"%s\"}",
-                user.getEmail(),
-                user.getPassword(),
-                user.getName()
-        );
-
+    public Response createUser(User user) {
         return given()
                 .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
+                .contentType(ContentType.JSON)
+                .body(user)
                 .when()
                 .post("/api/auth/register");
     }
 
-    @Step("Создать пользователя без email")
-    public static Response createUserWithoutEmail(User user) {
-
-        String body = String.format(
-                "{\"password\":\"%s\",\"name\":\"%s\"}",
-                user.getPassword(),
-                user.getName()
-        );
-
+    public Response loginUser(LoginRequest loginRequest) {
         return given()
                 .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .when()
-                .post("/api/auth/register");
-    }
-
-    @Step("Создать пользователя без password")
-    public static Response createUserWithoutPassword(User user) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"name\":\"%s\"}",
-                user.getEmail(),
-                user.getName()
-        );
-
-        return given()
-                .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .when()
-                .post("/api/auth/register");
-    }
-
-    @Step("Создать пользователя без name")
-    public static Response createUserWithoutName(User user) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"password\":\"%s\"}",
-                user.getEmail(),
-                user.getPassword()
-        );
-
-        return given()
-                .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .when()
-                .post("/api/auth/register");
-    }
-
-    @Step("Авторизоваться под пользователем")
-    public static Response loginUser(User user) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"password\":\"%s\"}",
-                user.getEmail(),
-                user.getPassword()
-        );
-
-        return given()
-                .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
+                .contentType(ContentType.JSON)
+                .body(loginRequest)
                 .when()
                 .post("/api/auth/login");
     }
 
-    @Step("Изменить данные пользователя")
-    public static Response updateUser(
-            String accessToken,
-            String email,
-            String password,
-            String name
-    ) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"password\":\"%s\",\"name\":\"%s\"}",
-                email,
-                password,
-                name
-        );
-
+    public Response updateUser(String accessToken, User user) {
         return given()
                 .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
+                .contentType(ContentType.JSON)
                 .header("Authorization", accessToken)
-                .body(body)
+                .body(user)
                 .when()
                 .patch("/api/auth/user");
     }
 
-    @Step("Изменить данные пользователя без авторизации")
-    public static Response updateUserWithoutAuthorization(
-            String email,
-            String password,
-            String name
-    ) {
-
-        String body = String.format(
-                "{\"email\":\"%s\",\"password\":\"%s\",\"name\":\"%s\"}",
-                email,
-                password,
-                name
-        );
-
+    public Response updateUserWithoutAuthorization(User user) {
         return given()
                 .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
+                .contentType(ContentType.JSON)
+                .body(user)
                 .when()
                 .patch("/api/auth/user");
     }
 
-    @Step("Создать заказ")
-    public static Response createOrder(
-            String accessToken,
-            String ingredients
-    ) {
-
-        String body = "{\"ingredients\":" + ingredients + "}";
-
+    public Response deleteUser(String accessToken) {
         return given()
                 .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
                 .header("Authorization", accessToken)
-                .body(body)
                 .when()
-                .post("/api/orders");
+                .delete("/api/auth/user");
     }
 
-    @Step("Создать заказ без авторизации")
-    public static Response createOrderWithoutAuthorization(
-            String ingredients
-    ) {
-
-        String body = "{\"ingredients\":" + ingredients + "}";
-
-        return given()
-                .baseUri(BASE_URL)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .when()
-                .post("/api/orders");
-    }
-
-    @Step("Получить список ингредиентов")
-    public static Response getIngredients() {
-
+    public Response getIngredients() {
         return given()
                 .baseUri(BASE_URL)
                 .when()
                 .get("/api/ingredients");
     }
 
-    @Step("Получить заказы пользователя")
-    public static Response getUserOrders(String accessToken) {
+    public Response createOrder(String accessToken, OrderRequest orderRequest) {
+        return given()
+                .baseUri(BASE_URL)
+                .contentType(ContentType.JSON)
+                .header("Authorization", accessToken)
+                .body(orderRequest)
+                .when()
+                .post("/api/orders");
+    }
 
+    public Response createOrderWithoutAuthorization(OrderRequest orderRequest) {
+        return given()
+                .baseUri(BASE_URL)
+                .contentType(ContentType.JSON)
+                .body(orderRequest)
+                .when()
+                .post("/api/orders");
+    }
+
+    public Response getUserOrders(String accessToken) {
         return given()
                 .baseUri(BASE_URL)
                 .header("Authorization", accessToken)
@@ -194,22 +92,10 @@ public class StellarBurgersApi {
                 .get("/api/orders");
     }
 
-    @Step("Получить заказы без авторизации")
-    public static Response getUserOrdersWithoutAuthorization() {
-
+    public Response getUserOrdersWithoutAuthorization() {
         return given()
                 .baseUri(BASE_URL)
                 .when()
                 .get("/api/orders");
-    }
-
-    @Step("Удалить пользователя")
-    public static Response deleteUser(String accessToken) {
-
-        return given()
-                .baseUri(BASE_URL)
-                .header("Authorization", accessToken)
-                .when()
-                .delete("/api/auth/user");
     }
 }

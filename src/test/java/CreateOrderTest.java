@@ -1,71 +1,84 @@
-import client.StellarBurgersApi;
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
 import io.restassured.response.Response;
 import model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import steps.OrderSteps;
+import steps.UserSteps;
+import utils.UserGenerator;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CreateOrderTest {
 
+    private final UserSteps userSteps = new UserSteps();
+    private final OrderSteps orderSteps = new OrderSteps();
+
     private String accessToken;
 
     @AfterEach
-    @Step("Удалить тестового пользователя")
     public void tearDown() {
-
-        if (accessToken != null) {
-            StellarBurgersApi.deleteUser(accessToken);
-        }
+        userSteps.deleteUser(accessToken);
     }
 
     @Test
-    @Step("Создать заказ с авторизацией и ингредиентами")
+    @Description("Создание заказа авторизованным пользователем с ингредиентами")
     public void createOrderWithAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        createUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        String ingredients = getValidIngredients();
+        List<String> ingredients =
+                orderSteps.getValidIngredients();
 
-        Response response = StellarBurgersApi.createOrder(
-                accessToken,
-                ingredients
-        );
+        Response response =
+                orderSteps.createOrder(
+                        accessToken,
+                        ingredients
+                );
 
         assertEquals(200, response.statusCode());
         assertTrue(response.jsonPath().getBoolean("success"));
-        assertNotNull(response.jsonPath().getString("order.number"));
+        assertNotNull(
+                response.jsonPath().get("order.number")
+        );
     }
 
     @Test
-    @Step("Создать заказ без авторизации с ингредиентами")
+    @Description("Создание заказа без авторизации с ингредиентами")
     public void createOrderWithoutAuthorizationTest() {
+        List<String> ingredients =
+                orderSteps.getValidIngredients();
 
-        String ingredients = getValidIngredients();
-
-        Response response = StellarBurgersApi.createOrderWithoutAuthorization(
-                ingredients
-        );
+        Response response =
+                orderSteps.createOrderWithoutAuthorization(
+                        ingredients
+                );
 
         assertEquals(200, response.statusCode());
         assertTrue(response.jsonPath().getBoolean("success"));
-        assertNotNull(response.jsonPath().getString("order.number"));
+        assertNotNull(
+                response.jsonPath().get("order.number")
+        );
     }
 
     @Test
-    @Step("Создать заказ с авторизацией без ингредиентов")
+    @Description("Создание заказа без ингредиентов авторизованным пользователем")
     public void createOrderWithAuthorizationWithoutIngredientsTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        createUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        Response response = StellarBurgersApi.createOrder(
-                accessToken,
-                "[]"
-        );
+        Response response =
+                orderSteps.createOrder(
+                        accessToken,
+                        Collections.emptyList()
+                );
 
         assertEquals(400, response.statusCode());
         assertFalse(response.jsonPath().getBoolean("success"));
@@ -76,12 +89,12 @@ public class CreateOrderTest {
     }
 
     @Test
-    @Step("Создать заказ без авторизации и без ингредиентов")
+    @Description("Создание заказа без ингредиентов и без авторизации")
     public void createOrderWithoutAuthorizationWithoutIngredientsTest() {
-
-        Response response = StellarBurgersApi.createOrderWithoutAuthorization(
-                "[]"
-        );
+        Response response =
+                orderSteps.createOrderWithoutAuthorization(
+                        Collections.emptyList()
+                );
 
         assertEquals(400, response.statusCode());
         assertFalse(response.jsonPath().getBoolean("success"));
@@ -92,49 +105,18 @@ public class CreateOrderTest {
     }
 
     @Test
-    @Step("Создать заказ с неверным хешем ингредиента")
+    @Description("Создание заказа с неверным хешем ингредиента")
     public void createOrderWithInvalidIngredientHashTest() {
+        List<String> ingredients =
+                Collections.singletonList(
+                        "invalid_ingredient_hash"
+                );
 
-        Response response = StellarBurgersApi.createOrderWithoutAuthorization(
-                "[\"invalid_ingredient_hash\"]"
-        );
+        Response response =
+                orderSteps.createOrderWithoutAuthorization(
+                        ingredients
+                );
 
         assertEquals(500, response.statusCode());
-    }
-
-    @Step("Создать пользователя")
-    private void createUser() {
-
-        String uniqueId = UUID.randomUUID().toString();
-
-        User user = new User(
-                "order_" + uniqueId + "@mail.ru",
-                "Password123",
-                "OrderUser"
-        );
-
-        Response response = StellarBurgersApi.createUser(user);
-
-        assertEquals(200, response.statusCode());
-
-        accessToken = response.jsonPath().getString("accessToken");
-    }
-
-    @Step("Получить ID существующих ингредиентов")
-    private String getValidIngredients() {
-
-        Response response = StellarBurgersApi.getIngredients();
-
-        assertEquals(200, response.statusCode());
-        assertTrue(response.jsonPath().getBoolean("success"));
-
-        List<String> ids = response.jsonPath().getList(
-                "data._id",
-                String.class
-        );
-
-        assertFalse(ids.isEmpty());
-
-        return "[\"" + ids.get(0) + "\",\"" + ids.get(1) + "\"]";
     }
 }

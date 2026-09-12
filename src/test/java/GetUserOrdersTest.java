@@ -1,34 +1,36 @@
-import client.StellarBurgersApi;
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
 import io.restassured.response.Response;
 import model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.UUID;
+import steps.OrderSteps;
+import steps.UserSteps;
+import utils.UserGenerator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class GetUserOrdersTest {
 
+    private final UserSteps userSteps = new UserSteps();
+    private final OrderSteps orderSteps = new OrderSteps();
+
     private String accessToken;
 
     @AfterEach
-    @Step("Удалить тестового пользователя")
     public void tearDown() {
-
-        if (accessToken != null) {
-            StellarBurgersApi.deleteUser(accessToken);
-        }
+        userSteps.deleteUser(accessToken);
     }
 
     @Test
-    @Step("Получить заказы авторизованного пользователя")
+    @Description("Получение заказов авторизованного пользователя")
     public void getOrdersWithAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        createUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        Response response = StellarBurgersApi.getUserOrders(accessToken);
+        Response response =
+                orderSteps.getUserOrders(accessToken);
 
         assertEquals(200, response.statusCode());
         assertTrue(response.jsonPath().getBoolean("success"));
@@ -36,36 +38,16 @@ public class GetUserOrdersTest {
     }
 
     @Test
-    @Step("Получить заказы без авторизации")
+    @Description("Попытка получения заказов без авторизации")
     public void getOrdersWithoutAuthorizationTest() {
-
         Response response =
-                StellarBurgersApi.getUserOrdersWithoutAuthorization();
+                orderSteps.getUserOrdersWithoutAuthorization();
 
         assertEquals(401, response.statusCode());
         assertFalse(response.jsonPath().getBoolean("success"));
-
         assertEquals(
                 "You should be authorised",
                 response.jsonPath().getString("message")
         );
-    }
-
-    @Step("Создать пользователя")
-    private void createUser() {
-
-        String uniqueId = UUID.randomUUID().toString();
-
-        User user = new User(
-                "orders_" + uniqueId + "@mail.ru",
-                "Password123",
-                "OrdersUser"
-        );
-
-        Response response = StellarBurgersApi.createUser(user);
-
-        assertEquals(200, response.statusCode());
-
-        accessToken = response.jsonPath().getString("accessToken");
     }
 }

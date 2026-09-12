@@ -1,9 +1,10 @@
-import client.StellarBurgersApi;
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
 import io.restassured.response.Response;
 import model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import steps.UserSteps;
+import utils.UserGenerator;
 
 import java.util.UUID;
 
@@ -11,30 +12,33 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ChangeUserTest {
 
+    private final UserSteps userSteps = new UserSteps();
     private String accessToken;
 
     @AfterEach
-    @Step("Удалить тестового пользователя")
     public void tearDown() {
-        if (accessToken != null) {
-            StellarBurgersApi.deleteUser(accessToken);
-        }
+        userSteps.deleteUser(accessToken);
     }
 
     @Test
-    @Step("Изменить email с авторизацией")
+    @Description("Изменение email авторизованного пользователя")
     public void changeEmailWithAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = createUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        String newEmail = "new_" + UUID.randomUUID() + "@mail.ru";
+        String newEmail =
+                "new_" + UUID.randomUUID() + "@mail.ru";
 
-        Response response = StellarBurgersApi.updateUser(
-                accessToken,
+        User changedUser = new User(
                 newEmail,
                 user.getPassword(),
                 user.getName()
         );
+
+        Response response =
+                userSteps.updateUser(accessToken, changedUser);
 
         assertEquals(200, response.statusCode());
         assertTrue(response.jsonPath().getBoolean("success"));
@@ -45,132 +49,117 @@ public class ChangeUserTest {
     }
 
     @Test
-    @Step("Изменить password с авторизацией")
+    @Description("Изменение password авторизованного пользователя")
     public void changePasswordWithAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = createUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        String newPassword = "NewPassword123";
-
-        Response response = StellarBurgersApi.updateUser(
-                accessToken,
-                user.getEmail(),
-                newPassword,
-                user.getName()
-        );
-
-        assertEquals(200, response.statusCode());
-        assertTrue(response.jsonPath().getBoolean("success"));
-    }
-
-    @Test
-    @Step("Изменить name с авторизацией")
-    public void changeNameWithAuthorizationTest() {
-
-        User user = createUser();
-
-        String newName = "NewName";
-
-        Response response = StellarBurgersApi.updateUser(
-                accessToken,
-                user.getEmail(),
-                user.getPassword(),
-                newName
-        );
-
-        assertEquals(200, response.statusCode());
-        assertTrue(response.jsonPath().getBoolean("success"));
-        assertEquals(
-                newName,
-                response.jsonPath().getString("user.name")
-        );
-    }
-
-    @Test
-    @Step("Изменить email без авторизации")
-    public void changeEmailWithoutAuthorizationTest() {
-
-        User user = getUniqueUser();
-
-        String newEmail = "new_" + UUID.randomUUID() + "@mail.ru";
-
-        Response response = StellarBurgersApi.updateUserWithoutAuthorization(
-                newEmail,
-                user.getPassword(),
-                user.getName()
-        );
-
-        assertEquals(401, response.statusCode());
-        assertFalse(response.jsonPath().getBoolean("success"));
-        assertEquals(
-                "You should be authorised",
-                response.jsonPath().getString("message")
-        );
-    }
-
-    @Test
-    @Step("Изменить password без авторизации")
-    public void changePasswordWithoutAuthorizationTest() {
-
-        User user = getUniqueUser();
-
-        Response response = StellarBurgersApi.updateUserWithoutAuthorization(
+        User changedUser = new User(
                 user.getEmail(),
                 "NewPassword123",
                 user.getName()
         );
 
-        assertEquals(401, response.statusCode());
-        assertFalse(response.jsonPath().getBoolean("success"));
-        assertEquals(
-                "You should be authorised",
-                response.jsonPath().getString("message")
-        );
+        Response response =
+                userSteps.updateUser(accessToken, changedUser);
+
+        assertEquals(200, response.statusCode());
+        assertTrue(response.jsonPath().getBoolean("success"));
     }
 
     @Test
-    @Step("Изменить name без авторизации")
-    public void changeNameWithoutAuthorizationTest() {
+    @Description("Изменение name авторизованного пользователя")
+    public void changeNameWithAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
 
-        User user = getUniqueUser();
+        accessToken =
+                userSteps.createUserAndGetToken(user);
 
-        Response response = StellarBurgersApi.updateUserWithoutAuthorization(
+        User changedUser = new User(
                 user.getEmail(),
                 user.getPassword(),
                 "NewName"
         );
 
+        Response response =
+                userSteps.updateUser(accessToken, changedUser);
+
+        assertEquals(200, response.statusCode());
+        assertTrue(response.jsonPath().getBoolean("success"));
+        assertEquals(
+                "NewName",
+                response.jsonPath().getString("user.name")
+        );
+    }
+
+    @Test
+    @Description("Попытка изменения email пользователя без авторизации")
+    public void changeEmailWithoutAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
+
+        accessToken =
+                userSteps.createUserAndGetToken(user);
+
+        User changedUser = new User(
+                "new_" + UUID.randomUUID() + "@mail.ru",
+                user.getPassword(),
+                user.getName()
+        );
+
+        Response response =
+                userSteps.updateUserWithoutAuthorization(changedUser);
+
+        checkUnauthorizedResponse(response);
+    }
+
+    @Test
+    @Description("Попытка изменения password пользователя без авторизации")
+    public void changePasswordWithoutAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
+
+        accessToken =
+                userSteps.createUserAndGetToken(user);
+
+        User changedUser = new User(
+                user.getEmail(),
+                "NewPassword123",
+                user.getName()
+        );
+
+        Response response =
+                userSteps.updateUserWithoutAuthorization(changedUser);
+
+        checkUnauthorizedResponse(response);
+    }
+
+    @Test
+    @Description("Попытка изменения name пользователя без авторизации")
+    public void changeNameWithoutAuthorizationTest() {
+        User user = UserGenerator.getUniqueUser();
+
+        accessToken =
+                userSteps.createUserAndGetToken(user);
+
+        User changedUser = new User(
+                user.getEmail(),
+                user.getPassword(),
+                "NewName"
+        );
+
+        Response response =
+                userSteps.updateUserWithoutAuthorization(changedUser);
+
+        checkUnauthorizedResponse(response);
+    }
+
+    private void checkUnauthorizedResponse(Response response) {
         assertEquals(401, response.statusCode());
         assertFalse(response.jsonPath().getBoolean("success"));
         assertEquals(
                 "You should be authorised",
                 response.jsonPath().getString("message")
-        );
-    }
-
-    @Step("Создать пользователя для изменения данных")
-    private User createUser() {
-
-        User user = getUniqueUser();
-
-        Response response = StellarBurgersApi.createUser(user);
-
-        assertEquals(200, response.statusCode());
-
-        accessToken = response.jsonPath().getString("accessToken");
-
-        return user;
-    }
-
-    @Step("Сгенерировать уникального пользователя")
-    private User getUniqueUser() {
-
-        String uniqueId = UUID.randomUUID().toString();
-
-        return new User(
-                "change_" + uniqueId + "@mail.ru",
-                "Password123",
-                "ChangeUser"
         );
     }
 }
